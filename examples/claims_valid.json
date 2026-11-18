@@ -1,0 +1,18 @@
+{
+  "claims": [
+    {
+      "id": "CLAIM-01",
+      "text": "The fictional event takes place at a booked venue.",
+      "evidence_ids": [
+        "EVENT-01"
+      ]
+    },
+    {
+      "id": "CLAIM-02",
+      "text": "The fictional session lasts for the agreed duration.",
+      "evidence_ids": [
+        "EVENT-02"
+      ]
+    }
+  ]
+}

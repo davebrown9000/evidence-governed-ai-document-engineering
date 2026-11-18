@@ -1,0 +1,34 @@
+{
+  "records": [
+    {
+      "id": "EVENT-01",
+      "status": "supported",
+      "approved": true,
+      "description": "Fictional venue booking confirmed"
+    },
+    {
+      "id": "EVENT-02",
+      "status": "supported",
+      "approved": true,
+      "description": "Fictional session length approved"
+    },
+    {
+      "id": "EVENT-03",
+      "status": "pending",
+      "approved": false,
+      "description": "Fictional accessibility detail awaits review"
+    },
+    {
+      "id": "EVENT-04",
+      "status": "supported",
+      "approved": false,
+      "description": "Fictional detail not cleared for use"
+    },
+    {
+      "id": "EVENT-05",
+      "status": "withdrawn",
+      "approved": false,
+      "description": "Fictional schedule superseded"
+    }
+  ]
+}
