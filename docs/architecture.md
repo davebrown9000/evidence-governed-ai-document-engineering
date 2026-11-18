@@ -1,27 +1,52 @@
-# Architecture and boundaries
+# Architecture and engineering boundaries
 
-## Narrow question
+## Responsibility
 
-Can a submitted draft's declared evidence references be checked *deterministically* against an approved registry, before a separate human review?
+This example is one small, deterministic validation component in the *conceptual* lifecycle of an AI-assisted document. The only implemented responsibilities are parsing two JSON inputs, checking claim/evidence reference integrity, and returning structured findings plus a process exit status.
 
-## Contract
+It intentionally separates **reference governance** from **semantic verification**. An evidence ID can be valid while the linked prose remains misleading or false.
 
-- Evidence JSON: `records` list of objects with unique string `id`, `status` (`supported`, `pending`, `withdrawn`), and boolean `approved`.
-- Claims JSON: `claims` list of objects with unique string `id`, non-empty string `text`, and list `evidence_ids` containing one or more strings.
-- Every claim must reference existing, supported, approved evidence. Extra fields are ignored. Invalid input or schema yields exit status `2`; evidence findings yield `1`; a clean report yields `0`.
-- The report lists claim IDs and finding categories without exporting evidence text.
+## Interface contracts
 
-## Engineering choices
+**Evidence registry**: JSON object with `records`, a list of objects containing a unique non-empty string `id`, a `status` of `supported`, `pending` or `withdrawn`, and a boolean `approved`.
 
-- A static JSON input format allows tests without networking or secrets.
-- Validation is conservative: an absent reference blocks rather than silently defaulting to approval.
-- The validator makes no assertions about AI-authored language, truthfulness or semantic fidelity.
-- The output is a decision aid; a human review boundary remains mandatory even when all checks pass.
+**Draft**: JSON object with `claims`, a list of objects containing a unique non-empty string `id`, a non-empty string `text`, and a non-empty list of non-empty string `evidence_ids`.
 
-## Explicitly excluded
+Additional fields are ignored. Multiple references to the same evidence ID within one claim are deduplicated by the current implementation.
 
-Any AI prompt/model execution, rich document rendering, production-grade evidence registry, sensitive data ingestion, PDF/ATS checks, identity/chronology reconciliation, security guarantees, and the original application's operational workflow.
+## Validation sequence
 
-## Threat model / what is not solved
+1. Parse both input JSON files.
+2. Check required collections, record types and unique identifiers.
+3. Validate evidence statuses, approval types, claim text and reference lists.
+4. Index evidence records by ID.
+5. For each distinct referenced ID, classify missing, unsupported or unapproved evidence.
+6. Emit JSON findings and an exit status while retaining `human_review_required: true`.
 
-A fabricated evidence register can pass. A materially misleading claim can pass if it references approved evidence. The content of evidence may be inaccurate or outdated. Changes to input files after validation are not tracked. External publication must be separately authorised.
+| Condition | Classification |
+|---|---|
+| Evidence ID not present | `missing_evidence` |
+| Evidence exists but status is not `supported` | `unsupported_evidence` |
+| Evidence supported but `approved` is `false` | `unapproved_evidence` |
+| All references supported and approved | No reference-level finding |
+| Input JSON, schema or file invalid | Input error; status `2` |
+
+**Priority rule:** Status checks precede approval checks. A pending, unapproved record receives `unsupported_evidence`, not two separate findings.
+
+## Design trade-offs
+
+- **Determinism over sophistication:** Simple explicit rules are inspectable and repeatable, but they cannot assess meaning.
+- **Fail-closed references:** A missing record is rejected instead of assuming approval; this is safer for controlled document outputs.
+- **Small JSON contract:** Keeps the demonstration easy to reproduce without services, but omits a database, change history and concurrency controls.
+- **Structured findings:** Supports downstream review and automation while limiting the report to identifiers and classification rather than exporting evidence contents.
+- **Human approval retained:** The component reports reference consistency, not permission to publish.
+
+## Controls outside the demonstration
+
+No model calls, prompt orchestration, semantic entailment tests, evidence quality assessment, original application workflows, production database, audit trail, authorisation layer, PDF generation, ATS validation or client/employer data appear in this project.
+
+A stronger real-world implementation would also need to address evidence provenance, immutable versions, temporal validity, content-to-source alignment, concurrent updates and appropriate access controls. Those are identified design considerations, **not features implemented here**.
+
+## Verification
+
+Run `python3 -m unittest discover -s tests -v` and the two examples in the README. The deliberately invalid-approval example should produce a reference finding and return exit status `1`. The positive example should return `0`.
