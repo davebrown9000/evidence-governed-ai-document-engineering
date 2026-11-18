@@ -1,60 +1,86 @@
-# Evidence-Governed Document Validation
+# Evidence-Governed AI Document Engineering
 
-**A compact Python demonstration of deterministic quality gates for AI-assisted document workflows.**
+An AI-assisted document-engineering workflow that combines structured evidence management, requirements analysis, controlled content generation, deterministic validation and human oversight to produce accurate, traceable and purpose-specific documents.
 
-In systems that use generative AI to draft reports, summaries or application material, fluent text is not evidence of correctness. A useful engineering control is to maintain a separate register of approved evidence and validate every declared claim-to-evidence reference before human review.
+The broader architecture uses AI to help establish and maintain an approved evidence register, interpret requirements from source documents, assess whether sufficient evidence exists to satisfy those requirements, and generate the structured artefacts needed for document production.
 
-This demonstration implements that **reference-integrity gate**, using fictional community-event data. It does not call an AI model or determine whether a claim is factually true.
+AI-assisted drafting then produces content grounded in the approved evidence, while programmatic controls validate evidence references, structural requirements and document integrity. Human approval is incorporated at defined checkpoints, including before and after final document rendering.
+
+**This public-facing repository demonstrates one component of that architecture:** deterministic claim-to-evidence validation using fictional data. The complete AI orchestration, evidence-management and document-generation implementations remain private.
+
+## Architecture overview
+
+The broader workflow separates interpretation and content generation from repeatable quality controls:
+
+```text
+Source requirements ──────────────── Approved evidence register
+         │                                     ▲
+         ▼                                     │
+AI-assisted requirements assessment    AI-assisted evidence preparation
+         │                             + human verification and approval
+         └────────────────┬────────────────────┘
+                          ▼
+              Structured workflow artefacts
+                          │
+                          ▼
+              Evidence-grounded AI drafting
+                          │
+                          ▼
+                   Human content review
+                          │
+                          ▼
+               Controlled document rendering
+                          │
+                          ▼
+          Programmatic output and integrity checks
+                          │
+                          ▼
+                 Human visual review
+```
+
+This is a conceptual overview of the **broader private system**, not an execution diagram for the public Python package. Its review, validation and correction stages can recur as artefacts are refined.
+
+The **implemented public example** is deliberately narrower:
+
+```text
+Fictional evidence register ─┐
+                             ├──> Deterministic reference validator
+Fictional draft claims ──────┘                  │
+                                     JSON findings + exit status
+                                               │
+                                       Human review required
+```
 
 ## The engineering problem
 
-A generated or manually drafted document may contain claims supported by references that are missing, withdrawn, pending or not approved for use. Allowing those references through creates an avoidable quality-control failure. The objective is a small, predictable validation boundary that can be automated and tested independently of how the prose was produced.
+AI-generated or manually drafted material may contain claims linked to evidence that is absent, pending, withdrawn or not approved. Fluent prose alone is not an assurance of factual accuracy or permission to use the cited evidence. Separating approved evidence from generated text makes a useful portion of document quality measurable and reproducible.
 
-## System boundary
-
-```text
-                        Illustrative wider workflow (not implemented)
-  AI-assisted or human drafting
-               |
-               v
-  Draft claims + evidence IDs -----------------+
-                                               |
-  Independently maintained evidence register --+--> Deterministic validator
-                                                       |
-                                      +----------------+-----------------+
-                                      |                                  |
-                              Machine-readable                      Exit status
-                              findings (JSON)                       0 / 1 / 2
-                                      |
-                                      v
-                         Human assessment of meaning,
-                         source quality and final release
-```
-
-Only the **deterministic validator**, its input fixtures, tests and CI are implemented in this repository. The surrounding AI-assisted workflow is architectural context, not claimed functionality.
+The demonstrated control checks **whether declared evidence references are valid and approved**. It does not independently establish factual truth, assess semantic entailment or authorise publication.
 
 ## Design decisions
 
 | Decision | Engineering rationale |
 |---|---|
-| Separate claims from evidence | Makes the approval state independently inspectable rather than embedding it in draft text |
-| Validate references deterministically | Creates reproducible checks independent of model output variability |
-| Fail closed on missing or unapproved records | Prevents absent evidence from being silently treated as accepted |
-| Return structured findings | Supports automated quality gates and human triage |
-| Distinguish error exit statuses | Separates invalid inputs from valid inputs that contain unacceptable references |
-| Retain mandatory human review | A valid reference cannot establish semantic entailment, truth or appropriateness |
+| Maintain evidence independently from drafts | Makes evidence status and approval reviewable without relying on generated text |
+| Structure requirements and intermediate artefacts | Creates explicit inputs and checkpoints for a multi-stage workflow |
+| Apply deterministic reference checks | Produces repeatable validation independent of variability in AI drafting |
+| Fail closed on missing or unapproved references | Prevents absent evidence from silently being accepted |
+| Emit structured findings and exit statuses | Supports automation, diagnosis and subsequent human review |
+| Preserve human approval checkpoints | A valid reference does not establish whether wording is truthful, complete or suitable |
 
-## Implemented behaviour
+Only the reference-validation decisions are implemented in this public repository; the broader workflow decisions are described as architectural context.
 
-The Python 3.11+ standard-library validator checks input shape, unique record identifiers, non-empty claim text, valid evidence references, evidence status and explicit approval. It emits a JSON report containing reason-coded findings, a `passed_reference_checks` boolean and `human_review_required: true`.
+## Public demonstration
+
+The Python 3.11+ standard-library validator accepts two JSON inputs: a fictional evidence register and fictional draft claims. It validates input shape, unique identifiers, non-empty claim text, referenced evidence status and explicit approval. Its JSON report includes reason-coded findings, `passed_reference_checks` and `human_review_required: true`.
 
 | Exit code | Meaning |
 |---|---|
-| `0` | Input accepted; all references pass the implemented checks |
-| `1` | Input accepted; one or more evidence-reference checks fail |
-| `2` | Invalid JSON, input schema or file access |
+| `0` | Inputs are valid and all references pass the implemented checks |
+| `1` | Inputs are valid but one or more references fail |
+| `2` | Invalid JSON, schema or file access |
 
-### Run it
+### Run locally
 
 ```bash
 python3 -m unittest discover -s tests -v
@@ -62,7 +88,7 @@ python3 -m demo.validator examples/evidence.json examples/claims_valid.json
 python3 -m demo.validator examples/evidence.json examples/claims.json
 ```
 
-The third command is an intentionally failing example and should exit with status `1`.
+The last command deliberately produces a finding and returns status `1`.
 
 ### Example finding
 
@@ -74,24 +100,33 @@ The third command is an intentionally failing example and should exit with statu
 }
 ```
 
-The fictional draft asserts that accessibility details have been confirmed, but the referenced evidence is still pending and unapproved. The validator detects that approval-state conflict. It does **not** judge whether the draft wording accurately reflects the evidence.
+The fictional draft claims that accessibility details are confirmed, but the referenced evidence remains pending and unapproved. The validator detects this inconsistency in evidence status; it cannot determine whether the draft paraphrases a source faithfully.
 
-## Testing and reproducibility
+## Continuous Integration and Quality Assurance
 
-- Seven `unittest` cases exercise accepted references, missing evidence, pending/withdrawn evidence, unapproved evidence, duplicate identifiers, invalid reference types and empty claim text.
-- GitHub Actions runs the unit tests plus positive and intentionally failing validation examples.
-- No external Python packages, network calls, secrets or real-person datasets are required.
+The architecture combines AI-assisted document generation with deterministic validation and human approval. This separates probabilistic content generation from reproducible engineering controls.
 
-## What this demonstrates
+Within the broader workflow, structured inputs, evidence references, document specifications and generated outputs are subject to defined validation checkpoints. These controls help detect unsupported claims, structural inconsistencies and document-quality issues before final approval.
 
-Small, testable controls around data provenance and document quality: explicit approval state, input contracts, fail-closed validation, machine-readable results and a human approval boundary. These are transferable design principles for analytical pipelines and AI-assisted business processes.
+The public demonstration implements a limited subset of these controls through GitHub Actions. Its CI workflow automatically:
 
-## Limitations
+- Executes seven Python unit tests.
+- Validates a synthetic document containing approved evidence references.
+- Confirms that a document referencing unapproved evidence is rejected.
+- Fails when the implemented validation checks do not behave as expected.
 
-This is **not** an LLM evaluation system, factual verifier, semantic entailment engine, document generator, security assurance or full production workflow. A fabricated evidence register or misleading paraphrase can pass these reference checks. The example also does not maintain an immutable evidence audit log or prove that input files remained unchanged after validation.
+The demonstration's CI workflow runs on pushes to `main` and pull requests. It uses Python 3.11, commit-pinned GitHub Actions dependencies and read-only repository permissions.
 
-Detailed contracts and failure boundaries are in [Architecture and limitations](docs/architecture.md).
+**Scope:** Public CI validates the demonstrated Python component. It does not execute the broader AI-assisted drafting, document-rendering or human-approval workflow.
+
+## Limitations and scope
+
+This repository is **not** an LLM evaluation system, a factual verifier, a semantic entailment engine or the full document-production system. A fabricated evidence register or misleading paraphrase can pass these reference checks. The example does not maintain an immutable evidence audit log or verify that files remain unchanged after validation.
+
+The fictional community-event fixtures are designed solely to exercise reference validation. They are not real source records, employer material, client material or production outputs.
+
+See [Architecture and engineering boundaries](docs/architecture.md) for detailed input contracts and what remains outside the demonstration.
 
 ## Copyright
 
-Copyright © 2026 David Brown. **All rights reserved.** No open-source licence or general permission to reuse, modify or redistribute the implementation is granted. This repository is an independently authored, synthetic demonstration; the underlying private systems and original source implementations are not included.
+Copyright © 2026 David Brown. **All rights reserved.** No open-source licence or general permission to reuse, modify or redistribute the implementation is granted. The original private systems and their source code are not included.
